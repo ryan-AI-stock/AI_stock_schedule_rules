@@ -58,16 +58,24 @@ def evaluate_gate(
     if trading_dates is None:
         return GateDecision(False, "", period_type, "calendar_unavailable")
 
-    run_after = _parse_hhmm(profile.get("run_after", "15:00"))
-    if now_tw.time() < run_after:
-        return GateDecision(False, "", period_type, "before_run_after")
-
     current = now_tw.date()
+    run_after = _parse_hhmm(profile.get("run_after", "15:00"))
     run_on = profile["run_on"]
     if run_on == "trading_day":
-        if current in trading_dates:
-            return GateDecision(True, current.isoformat(), period_type, "trading_day_after_run_after")
-        return GateDecision(False, "", period_type, "not_trading_day")
+        target = _latest_open_daily_target(
+            trading_dates,
+            current,
+            current_window_open=now_tw.time() >= run_after,
+        )
+        if target is None:
+            reason = "before_run_after" if now_tw.time() < run_after else "not_trading_day"
+            return GateDecision(False, "", period_type, reason)
+        if target == current:
+            return GateDecision(True, target.isoformat(), period_type, "trading_day_after_run_after")
+        return GateDecision(True, target.isoformat(), period_type, "retry_previous_trading_day_until_success")
+
+    if now_tw.time() < run_after:
+        return GateDecision(False, "", period_type, "before_run_after")
 
     if run_on == "last_trading_day_of_week":
         target = _last_trading_day_in_range(
@@ -150,6 +158,17 @@ def _period_decision(current: date, target: date | None, period_type: str, reaso
 
 def _last_trading_day_in_range(trading_dates: set[date], start: date, end: date) -> date | None:
     candidates = [day for day in trading_dates if start <= day <= end]
+    return max(candidates) if candidates else None
+
+
+def _latest_open_daily_target(
+    trading_dates: set[date],
+    current: date,
+    *,
+    current_window_open: bool,
+) -> date | None:
+    latest_allowed = current if current_window_open else current - timedelta(days=1)
+    candidates = [day for day in trading_dates if day <= latest_allowed]
     return max(candidates) if candidates else None
 
 

@@ -29,7 +29,7 @@ class GateTests(unittest.TestCase):
         self.assertTrue(decision.should_run)
         self.assertEqual(decision.target_date, "2026-06-05")
 
-    def test_daily_skips_before_15_and_weekend(self):
+    def test_daily_retries_previous_trading_day_until_next_window_opens(self):
         before_15 = evaluate_gate(
             self.rules,
             "daily",
@@ -43,8 +43,23 @@ class GateTests(unittest.TestCase):
             self.trading_dates,
         )
 
-        self.assertFalse(before_15.should_run)
-        self.assertFalse(weekend.should_run)
+        self.assertTrue(before_15.should_run)
+        self.assertEqual(before_15.target_date, "2026-06-04")
+        self.assertEqual(before_15.reason, "retry_previous_trading_day_until_success")
+        self.assertTrue(weekend.should_run)
+        self.assertEqual(weekend.target_date, "2026-06-05")
+        self.assertEqual(weekend.reason, "retry_previous_trading_day_until_success")
+
+    def test_daily_skips_before_first_open_window(self):
+        decision = evaluate_gate(
+            self.rules,
+            "daily",
+            datetime(2026, 6, 1, 14, 59, tzinfo=TAIPEI),
+            self.trading_dates,
+        )
+
+        self.assertFalse(decision.should_run)
+        self.assertEqual(decision.reason, "before_run_after")
 
     def test_calendar_unavailable_skips_without_failure(self):
         decision = evaluate_gate(
