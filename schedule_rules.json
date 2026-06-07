@@ -13,8 +13,7 @@
     "daily": {
       "period_type": "daily",
       "run_after": "15:00",
-      "run_on": "trading_day",
-      "retry_until": "23:00"
+      "run_on": "trading_day"
     },
     "weekly": {
       "period_type": "weekly",
