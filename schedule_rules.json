@@ -1,0 +1,36 @@
+{
+  "version": "2026.06.07",
+  "timezone": "Asia/Taipei",
+  "market": "TWSE",
+  "calendar": {
+    "source": "twse_holiday_schedule",
+    "on_error": "should_run_false"
+  },
+  "manual_dispatch": {
+    "bypass_gate": true
+  },
+  "profiles": {
+    "daily": {
+      "period_type": "daily",
+      "run_after": "15:00",
+      "run_on": "trading_day",
+      "retry_until": "23:00"
+    },
+    "weekly": {
+      "period_type": "weekly",
+      "run_after": "15:00",
+      "run_on": "last_trading_day_of_week",
+      "retry_until_next_trading_day": true
+    },
+    "monthly": {
+      "period_type": "monthly",
+      "run_after": "15:00",
+      "run_on": "last_trading_day_of_month"
+    },
+    "quarterly": {
+      "period_type": "quarterly",
+      "run_after": "15:00",
+      "run_on": "last_trading_day_of_quarter"
+    }
+  }
+}
