@@ -50,6 +50,27 @@ class GateTests(unittest.TestCase):
         self.assertEqual(weekend.target_date, "2026-06-05")
         self.assertEqual(weekend.reason, "retry_previous_trading_day_until_success")
 
+    def test_daily_respects_retry_until_success_false(self):
+        self.rules["profiles"]["daily"]["retry_until_success"] = False
+
+        before_15 = evaluate_gate(
+            self.rules,
+            "daily",
+            datetime(2026, 6, 5, 14, 59, tzinfo=TAIPEI),
+            self.trading_dates,
+        )
+        weekend = evaluate_gate(
+            self.rules,
+            "daily",
+            datetime(2026, 6, 6, 15, 0, tzinfo=TAIPEI),
+            self.trading_dates,
+        )
+
+        self.assertFalse(before_15.should_run)
+        self.assertEqual(before_15.reason, "before_run_after")
+        self.assertFalse(weekend.should_run)
+        self.assertEqual(weekend.reason, "not_trading_day")
+
     def test_daily_skips_before_first_open_window(self):
         decision = evaluate_gate(
             self.rules,

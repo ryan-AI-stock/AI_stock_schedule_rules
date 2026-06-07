@@ -62,13 +62,15 @@ def evaluate_gate(
     run_after = _parse_hhmm(profile.get("run_after", "15:00"))
     run_on = profile["run_on"]
     if run_on == "trading_day":
+        current_window_open = now_tw.time() >= run_after
         target = _latest_open_daily_target(
             trading_dates,
             current,
-            current_window_open=now_tw.time() >= run_after,
+            current_window_open=current_window_open,
+            retry_until_success=bool(profile.get("retry_until_success", False)),
         )
         if target is None:
-            reason = "before_run_after" if now_tw.time() < run_after else "not_trading_day"
+            reason = "before_run_after" if not current_window_open else "not_trading_day"
             return GateDecision(False, "", period_type, reason)
         if target == current:
             return GateDecision(True, target.isoformat(), period_type, "trading_day_after_run_after")
@@ -166,7 +168,10 @@ def _latest_open_daily_target(
     current: date,
     *,
     current_window_open: bool,
+    retry_until_success: bool,
 ) -> date | None:
+    if not retry_until_success:
+        return current if current_window_open and current in trading_dates else None
     latest_allowed = current if current_window_open else current - timedelta(days=1)
     candidates = [day for day in trading_dates if day <= latest_allowed]
     return max(candidates) if candidates else None
