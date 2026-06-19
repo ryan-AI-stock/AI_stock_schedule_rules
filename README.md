@@ -30,11 +30,19 @@ The CLI writes:
 
 ## Integration Policy
 
-Existing report repos should integrate this gate gradually:
+Downstream report repos should keep their workflow integration aligned with
+the runtime contract in
+[`docs/downstream_runtime_contract.md`](docs/downstream_runtime_contract.md).
 
-- `AI_stock_market_daily`: add a low-risk daily gate before the report step.
-- `AI_stock_backtest_lab`: add a low-risk daily gate before frozen strategy report generation.
-- `AI_stock_rotation_radar`: already has a gate; align behavior and tests with this repo.
-- `AI_stock_market_weekly`: already has a weekly final-trading-day gate; align behavior and tests with this repo.
+Current expected integrations:
+
+- `AI_stock_market_daily`: scheduled daily gate, with `target_date` passed as
+  `REPORT_DATE`.
+- `AI_stock_market_weekly`: scheduled weekly gate, with `SCHEDULE_RULES_PATH`
+  passed to report generation.
+- `AI_stock_rotation_radar`: scheduled daily gate, with manual `report_date`
+  override preserved.
+- `AI_stock_backtest_lab`: scheduled daily gate for scorecard and stock-pool
+  observation reports, with manual input overrides preserved.
 
 Do not change report content, HTML/PDF templates, fixed Drive file IDs, LINE entrypoints, model formulas, or backtest results while integrating the gate.
