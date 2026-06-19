@@ -34,6 +34,21 @@ Downstream report repos should keep their workflow integration aligned with
 the runtime contract in
 [`docs/downstream_runtime_contract.md`](docs/downstream_runtime_contract.md).
 
+Phase 0 static healthcheck:
+
+```powershell
+python -m stock_schedule_rules.contract_healthcheck --root work
+```
+
+The healthcheck expects local downstream checkouts under `work/` and verifies
+workflow wiring against the shared runtime contract. It does not call GitHub,
+read secrets, or modify downstream repos.
+
+TWSE calendar fallback options are documented in
+[`docs/twse_calendar_fallback_policy.md`](docs/twse_calendar_fallback_policy.md).
+That policy document is advisory only; the live gate still fails closed on
+`calendar_unavailable`.
+
 Current expected integrations:
 
 - `AI_stock_market_daily`: scheduled daily gate, with `target_date` passed as

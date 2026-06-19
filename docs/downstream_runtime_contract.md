@@ -57,3 +57,12 @@ live Action runs:
 - explicit mapping from `target_date` to downstream date variables
 - successful recent scheduled runs, or a documented non-code infrastructure
   blocker
+
+Phase 0 static workflow checks can be run from this repo with:
+
+```powershell
+python -m stock_schedule_rules.contract_healthcheck --root work
+```
+
+This prototype checks local downstream workflow files only. Live GitHub Actions
+evidence still needs to be verified separately when doing a full audit.
