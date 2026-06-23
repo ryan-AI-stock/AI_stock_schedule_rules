@@ -44,6 +44,7 @@ class ContractHealthcheckTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertTrue(result["repos"][0]["workflows"][0]["ok"])
+        self.assertTrue(result["repos"][0]["workflows"][0]["recommended_missing_any_of"])
 
     def test_missing_target_date_mapping_fails(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -67,6 +68,34 @@ class ContractHealthcheckTests(unittest.TestCase):
             "steps.schedule-gate.outputs.target_date",
             result["repos"][0]["workflows"][0]["missing"],
         )
+
+    def test_manual_fallback_recommended_fields_do_not_fail_static_check(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflow = root / "AI_stock_market_daily" / ".github" / "workflows" / "daily_run.yml"
+            workflow.parent.mkdir(parents=True)
+            workflow.write_text(
+                DAILY_WORKFLOW
+                + """
+          MANUAL_RERUN: ${{ github.event_name == 'workflow_dispatch' }}
+          REQUESTED_DATE: ${{ inputs.report_date }}
+          ACTUAL_REPORT_DATE: ${{ steps.report-date.outputs.actual_report_date }}
+          REQUIRE_EXACT_REPORT_DATE: ${{ inputs.require_exact_report_date || 'false' }}
+          FALLBACK_REASON: ${{ steps.report-date.outputs.fallback_reason }}
+""",
+                encoding="utf-8",
+            )
+            rule = RepoRule(
+                repo_id="DAILY_STOCK",
+                directory="AI_stock_market_daily",
+                workflows=EXPECTED_REPOS[0].workflows,
+            )
+
+            result = check_root(root, (rule,))
+
+        workflow_result = result["repos"][0]["workflows"][0]
+        self.assertTrue(result["ok"])
+        self.assertEqual(workflow_result["recommended_missing_any_of"], [])
 
     def test_missing_optional_workflow_does_not_fail_repo(self):
         with tempfile.TemporaryDirectory() as temp_dir:

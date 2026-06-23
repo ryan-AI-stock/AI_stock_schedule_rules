@@ -34,7 +34,34 @@ python -m stock_schedule_rules.gate --profile daily --github-output $env:GITHUB_
   names such as `report_date` or `signal_date`, but the mapping should be
   explicit in the workflow.
 - Manual input dates must override the gate date only inside
-  `workflow_dispatch` flows.
+  `workflow_dispatch` flows. This makes the manual input the
+  `requested_date`; it does not imply exact-date mode unless an exact flag is
+  explicitly enabled.
+
+## Manual Rerun Publish Fallback Contract
+
+Google token expiry can break the final Drive publish step while the report
+analysis itself was otherwise recoverable. Manual `workflow_dispatch` recovery
+therefore has a separate contract from scheduled runs:
+
+- scheduled runs may remain fail-closed when the scheduled date is incomplete
+- manual reruns default to `manual_rerun=true`
+- manual reruns default to `require_exact_date=false`
+- downstream repos should record `requested_date`
+- downstream repos should record `actual_report_date` or `actual_signal_date`
+- downstream repos should record `fallback_reason` when the actual date differs
+  from the requested date
+- manual recovery should generate a PDF from the latest complete reportable data
+  date and overwrite the fixed Drive file unless an explicit validation flag
+  disables publishing
+
+Repo-specific exact flags such as `require_exact_report_date` or
+`require_exact_signal_date` may exist, but their manual default should be false.
+Only explicit exact mode may stop a manual rerun solely because the requested
+date is unavailable.
+
+The detailed policy and acceptance scenario live in
+[`manual_rerun_publish_fallback_policy.md`](manual_rerun_publish_fallback_policy.md).
 
 ## Bypass And Validation Boundaries
 
@@ -66,3 +93,5 @@ python -m stock_schedule_rules.contract_healthcheck --root work
 
 This prototype checks local downstream workflow files only. Live GitHub Actions
 evidence still needs to be verified separately when doing a full audit.
+Missing manual rerun fallback fields are reported as TODOs, not failures, until
+downstream repos implement this newer policy.

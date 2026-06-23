@@ -49,6 +49,12 @@ TWSE calendar fallback options are documented in
 That policy document is advisory only; the live gate still fails closed on
 `calendar_unavailable`.
 
+Manual rerun publish fallback policy is documented in
+[`docs/manual_rerun_publish_fallback_policy.md`](docs/manual_rerun_publish_fallback_policy.md).
+This defines how `workflow_dispatch` recovery should publish the latest complete
+PDF after OAuth / Drive token failures without changing scheduled-run gate
+behavior.
+
 Current expected integrations:
 
 - `AI_stock_market_daily`: scheduled daily gate, with `target_date` passed as

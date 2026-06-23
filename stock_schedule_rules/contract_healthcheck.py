@@ -14,6 +14,7 @@ class WorkflowRule:
     path: str
     required: tuple[str, ...]
     any_of: tuple[tuple[str, ...], ...] = ()
+    recommended_any_of: tuple[tuple[str, ...], ...] = ()
     optional: bool = False
 
 
@@ -40,6 +41,13 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                     "REPORT_DATE",
                     "workflow_dispatch",
                 ),
+                recommended_any_of=(
+                    ("manual_rerun",),
+                    ("require_exact_date", "require_exact_report_date"),
+                    ("requested_date",),
+                    ("actual_report_date",),
+                    ("fallback_reason",),
+                ),
             ),
         ),
     ),
@@ -55,6 +63,13 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                     "steps.schedule-gate.outputs.should_run",
                     "workflow_dispatch",
                     "force_run",
+                ),
+                recommended_any_of=(
+                    ("manual_rerun",),
+                    ("require_exact_date", "require_exact_report_date"),
+                    ("requested_date",),
+                    ("actual_report_date",),
+                    ("fallback_reason",),
                 ),
             ),
         ),
@@ -74,6 +89,13 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                     "report_date",
                     "workflow_dispatch",
                 ),
+                recommended_any_of=(
+                    ("manual_rerun",),
+                    ("require_exact_date", "require_exact_report_date"),
+                    ("requested_date",),
+                    ("actual_report_date",),
+                    ("fallback_reason",),
+                ),
             ),
         ),
     ),
@@ -91,6 +113,13 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                     "report_date",
                     "workflow_dispatch",
                 ),
+                recommended_any_of=(
+                    ("manual_rerun",),
+                    ("require_exact_date", "require_exact_report_date"),
+                    ("requested_date",),
+                    ("actual_report_date",),
+                    ("fallback_reason",),
+                ),
             ),
             WorkflowRule(
                 path=".github/workflows/stock_pool_observation.yml",
@@ -102,6 +131,13 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                     "signal_date",
                     "workflow_dispatch",
                 ),
+                recommended_any_of=(
+                    ("manual_rerun",),
+                    ("require_exact_date", "require_exact_signal_date"),
+                    ("requested_date",),
+                    ("actual_signal_date",),
+                    ("fallback_reason",),
+                ),
             ),
             WorkflowRule(
                 path=".github/workflows/frozen_strategy_daily_report.yml",
@@ -112,6 +148,13 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                     "steps.schedule-gate.outputs.target_date",
                     "signal_date",
                     "workflow_dispatch",
+                ),
+                recommended_any_of=(
+                    ("manual_rerun",),
+                    ("require_exact_date", "require_exact_signal_date"),
+                    ("requested_date",),
+                    ("actual_signal_date",),
+                    ("fallback_reason",),
                 ),
                 optional=True,
             ),
@@ -165,14 +208,21 @@ def _check_workflow(repo_path: Path, rule: WorkflowRule) -> dict:
             "optional": rule.optional,
             "missing": [] if rule.optional else ["workflow_file"],
             "missing_any_of": [],
+            "recommended_missing_any_of": [list(group) for group in rule.recommended_any_of],
         }
 
     text = workflow_path.read_text(encoding="utf-8")
+    text_lower = text.lower()
     missing = [needle for needle in rule.required if needle not in text]
     missing_any_of = [
         list(group)
         for group in rule.any_of
         if not any(needle in text for needle in group)
+    ]
+    recommended_missing_any_of = [
+        list(group)
+        for group in rule.recommended_any_of
+        if not any(needle.lower() in text_lower for needle in group)
     ]
     return {
         "path": rule.path,
@@ -181,6 +231,7 @@ def _check_workflow(repo_path: Path, rule: WorkflowRule) -> dict:
         "optional": rule.optional,
         "missing": missing,
         "missing_any_of": missing_any_of,
+        "recommended_missing_any_of": recommended_missing_any_of,
     }
 
 
@@ -210,6 +261,8 @@ def _print_text_report(result: dict) -> None:
                 print(f"    missing: {missing}")
             for group in workflow.get("missing_any_of", []):
                 print(f"    missing any of: {', '.join(group)}")
+            for group in workflow.get("recommended_missing_any_of", []):
+                print(f"    todo any of: {', '.join(group)}")
 
 
 def main(argv: list[str] | None = None) -> int:
