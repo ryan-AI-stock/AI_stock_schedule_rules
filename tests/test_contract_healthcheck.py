@@ -27,6 +27,28 @@ jobs:
 """
 
 
+RIDGE_WORKFLOW = """
+on:
+  schedule:
+  workflow_dispatch:
+jobs:
+  shadow:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ryan-AI-stock/AI_stock_schedule_rules
+          path: schedule_rules
+      - id: schedule-gate
+        run: PYTHONPATH=schedule_rules python -m stock_schedule_rules.gate --profile daily
+      - if: steps.schedule-gate.outputs.should_run == 'true'
+        run: |
+          echo "${{ steps.schedule-gate.outputs.target_date }}"
+          if [ ! -f "data/vnext_shadow/inbox/$DECISION_DATE/manifest.json" ]; then exit 1; fi
+          python -m backtest_lab.vnext_p3_ridge_prospective_shadow predict --input-dir input
+"""
+
+
 class ContractHealthcheckTests(unittest.TestCase):
     def test_valid_repo_passes(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -118,6 +140,51 @@ class ContractHealthcheckTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertFalse(result["repos"][0]["workflows"][0]["exists"])
+
+    def test_ridge_shadow_requires_shared_schedule_gate(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflow = root / "AI_stock_backtest_lab" / ".github" / "workflows" / "vnext-ridge-prospective-shadow.yml"
+            workflow.parent.mkdir(parents=True)
+            workflow.write_text(
+                """
+on:
+  schedule:
+jobs:
+  shadow:
+    steps:
+      - run: python -m backtest_lab.vnext_p3_ridge_prospective_shadow predict --input-dir input
+""",
+                encoding="utf-8",
+            )
+            rule = RepoRule(
+                repo_id="BACKTEST_LAB",
+                directory="AI_stock_backtest_lab",
+                workflows=(EXPECTED_REPOS[3].workflows[2],),
+            )
+
+            result = check_root(root, (rule,))
+
+        workflow_result = result["repos"][0]["workflows"][0]
+        self.assertFalse(result["ok"])
+        self.assertIn("repository: ryan-AI-stock/AI_stock_schedule_rules", workflow_result["missing"])
+        self.assertIn("steps.schedule-gate.outputs.target_date", workflow_result["missing"])
+
+    def test_ridge_shadow_with_shared_gate_passes(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflow = root / "AI_stock_backtest_lab" / ".github" / "workflows" / "vnext-ridge-prospective-shadow.yml"
+            workflow.parent.mkdir(parents=True)
+            workflow.write_text(RIDGE_WORKFLOW, encoding="utf-8")
+            rule = RepoRule(
+                repo_id="BACKTEST_LAB",
+                directory="AI_stock_backtest_lab",
+                workflows=(EXPECTED_REPOS[3].workflows[2],),
+            )
+
+            result = check_root(root, (rule,))
+
+        self.assertTrue(result["ok"])
 
     def test_missing_repo_fails(self):
         with tempfile.TemporaryDirectory() as temp_dir:

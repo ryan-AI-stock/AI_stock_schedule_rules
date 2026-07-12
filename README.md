@@ -55,6 +55,11 @@ This defines how `workflow_dispatch` recovery should publish the latest complete
 PDF after OAuth / Drive token failures without changing scheduled-run gate
 behavior.
 
+Backtest Lab Ridge prospective shadow schedule governance is documented in
+[`docs/ridge_prospective_shadow_schedule_contract.md`](docs/ridge_prospective_shadow_schedule_contract.md).
+It is shadow-only and must remain isolated from PDF/Drive, formal reports, and
+trade decisions.
+
 Current expected integrations:
 
 - `AI_stock_market_daily`: scheduled daily gate, with `target_date` passed as

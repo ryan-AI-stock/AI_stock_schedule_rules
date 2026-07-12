@@ -37,6 +37,9 @@ python -m stock_schedule_rules.gate --profile daily --github-output $env:GITHUB_
   `workflow_dispatch` flows. This makes the manual input the
   `requested_date`; it does not imply exact-date mode unless an exact flag is
   explicitly enabled.
+- Shadow hooks with a `schedule:` trigger, including Backtest Lab Ridge
+  prospective shadow, must also use the shared schedule gate before appending
+  predictions.
 
 ## Manual Rerun Publish Fallback Contract
 
@@ -95,3 +98,8 @@ This prototype checks local downstream workflow files only. Live GitHub Actions
 evidence still needs to be verified separately when doing a full audit.
 Missing manual rerun fallback fields are reported as TODOs, not failures, until
 downstream repos implement this newer policy.
+
+Backtest Lab Ridge prospective shadow governance is documented in
+[`ridge_prospective_shadow_schedule_contract.md`](ridge_prospective_shadow_schedule_contract.md).
+It is append-only shadow prediction governance, not formal report or trade
+decision integration.

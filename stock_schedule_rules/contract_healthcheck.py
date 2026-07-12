@@ -140,6 +140,24 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                 ),
             ),
             WorkflowRule(
+                path=".github/workflows/vnext-ridge-prospective-shadow.yml",
+                required=(
+                    "repository: ryan-AI-stock/AI_stock_schedule_rules",
+                    "python -m stock_schedule_rules.gate",
+                    "steps.schedule-gate.outputs.should_run",
+                    "steps.schedule-gate.outputs.target_date",
+                    "manifest.json",
+                    "vnext_p3_ridge_prospective_shadow predict",
+                ),
+                recommended_any_of=(
+                    ("not_live_rule",),
+                    ("append_only", "append-only"),
+                    ("evaluation_ledger", "evaluation ledger"),
+                    ("corporate_action", "corporate-action"),
+                    ("freshness",),
+                ),
+            ),
+            WorkflowRule(
                 path=".github/workflows/frozen_strategy_daily_report.yml",
                 required=(
                     "repository: ryan-AI-stock/AI_stock_schedule_rules",
