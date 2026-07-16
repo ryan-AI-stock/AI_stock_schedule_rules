@@ -40,6 +40,7 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                     "steps.schedule-gate.outputs.target_date",
                     "REPORT_DATE",
                     "workflow_dispatch",
+                    "FORCE_RUN_REPORT: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}",
                 ),
                 recommended_any_of=(
                     ("manual_rerun",),
@@ -63,6 +64,8 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                     "steps.schedule-gate.outputs.should_run",
                     "workflow_dispatch",
                     "force_run",
+                    "MANUAL_RERUN:",
+                    "FORCE_RUN_REPORT: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}",
                 ),
                 recommended_any_of=(
                     ("manual_rerun",),
@@ -88,6 +91,8 @@ EXPECTED_REPOS: tuple[RepoRule, ...] = (
                     "steps.report-date.outputs.target_date",
                     "report_date",
                     "workflow_dispatch",
+                    "Check fixed Google Drive report completion",
+                    "pip install '.[test]'",
                 ),
                 recommended_any_of=(
                     ("manual_rerun",),

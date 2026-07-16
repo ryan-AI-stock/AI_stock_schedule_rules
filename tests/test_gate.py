@@ -129,8 +129,40 @@ class GateTests(unittest.TestCase):
         self.assertTrue(decision.should_run)
         self.assertEqual(decision.target_date, "2026-06-04")
 
+    def test_weekly_retries_on_closed_friday_until_next_trading_day(self):
+        trading_dates = self.trading_dates - {date(2026, 6, 5)}
+        decision = evaluate_gate(
+            self.rules,
+            "weekly",
+            datetime(2026, 6, 5, 18, 0, tzinfo=TAIPEI),
+            trading_dates,
+        )
+
+        self.assertTrue(decision.should_run)
+        self.assertEqual(decision.target_date, "2026-06-04")
+        self.assertEqual(decision.reason, "retry_weekly_until_next_trading_day")
+
+    def test_manual_policy_forces_generation_and_ignores_existing_report(self):
+        manual = self.rules["manual_dispatch"]
+
+        self.assertTrue(manual["bypass_gate"])
+        self.assertTrue(manual["force_generation"])
+        self.assertTrue(manual["ignore_existing_report"])
+        self.assertEqual(
+            self.rules["scheduled_completion"]["authority"],
+            "google_drive_current_period_report",
+        )
+
     def test_twse_non_json_returns_none(self):
         self.assertIsNone(fetch_twse_trading_dates(2026, fetcher=lambda _url: "<html>not json</html>"))
+
+    def test_twse_openapi_calendar_payload(self):
+        payload = '[{"Date":"1150216","Name":"春節休市"},{"Date":"1150207","Name":"開始交易"}]'
+        dates = fetch_twse_trading_dates(2026, fetcher=lambda _url: payload)
+
+        self.assertIsNotNone(dates)
+        self.assertNotIn(date(2026, 2, 16), dates)
+        self.assertIn(date(2026, 2, 7), dates)
 
 
 if __name__ == "__main__":

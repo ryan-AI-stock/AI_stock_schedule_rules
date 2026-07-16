@@ -24,6 +24,7 @@ jobs:
       - if: steps.schedule-gate.outputs.should_run == 'true'
         env:
           REPORT_DATE: ${{ steps.schedule-gate.outputs.target_date || '' }}
+          FORCE_RUN_REPORT: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}
 """
 
 
@@ -88,6 +89,32 @@ class ContractHealthcheckTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn(
             "steps.schedule-gate.outputs.target_date",
+            result["repos"][0]["workflows"][0]["missing"],
+        )
+
+    def test_daily_manual_dispatch_must_force_generation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            workflow = root / "AI_stock_market_daily" / ".github" / "workflows" / "daily_run.yml"
+            workflow.parent.mkdir(parents=True)
+            workflow.write_text(
+                DAILY_WORKFLOW.replace(
+                    "FORCE_RUN_REPORT: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}",
+                    "FORCE_RUN_REPORT: false",
+                ),
+                encoding="utf-8",
+            )
+            rule = RepoRule(
+                repo_id="DAILY_STOCK",
+                directory="AI_stock_market_daily",
+                workflows=EXPECTED_REPOS[0].workflows,
+            )
+
+            result = check_root(root, (rule,))
+
+        self.assertFalse(result["ok"])
+        self.assertIn(
+            "FORCE_RUN_REPORT: ${{ github.event_name == 'workflow_dispatch' && 'true' || 'false' }}",
             result["repos"][0]["workflows"][0]["missing"],
         )
 

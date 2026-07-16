@@ -14,7 +14,7 @@ from typing import Callable, Iterable
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
 DEFAULT_RULES_PATH = Path(__file__).resolve().parents[1] / "schedule_rules.json"
-TWSE_HOLIDAY_URL = "https://www.twse.com.tw/holidaySchedule/holidaySchedule?response=json"
+TWSE_HOLIDAY_URL = "https://openapi.twse.com.tw/v1/holidaySchedule/holidaySchedule"
 
 
 @dataclass(frozen=True)
@@ -85,6 +85,13 @@ def evaluate_gate(
             current - timedelta(days=current.weekday()),
             current + timedelta(days=6 - current.weekday()),
         )
+        if (
+            target is not None
+            and current > target
+            and current not in trading_dates
+            and bool(profile.get("retry_until_next_trading_day", False))
+        ):
+            return GateDecision(True, target.isoformat(), period_type, "retry_weekly_until_next_trading_day")
         return _period_decision(current, target, period_type, "last_trading_day_of_week")
 
     if run_on == "last_trading_day_of_month":
@@ -113,15 +120,42 @@ def fetch_twse_trading_dates(year: int, fetcher: Callable[[str], str] | None = N
     except Exception:
         return None
 
-    if not isinstance(payload, dict):
+    holidays, special_open_dates = _parse_calendar_payload(payload, year)
+    if holidays is None:
         return None
-
-    holidays = _parse_holiday_dates(payload, year)
     return {
         day
         for day in _iter_dates(date(year, 1, 1), date(year, 12, 31))
-        if day.weekday() < 5 and day not in holidays
+        if (day.weekday() < 5 and day not in holidays) or day in special_open_dates
     }
+
+
+def _parse_calendar_payload(payload: object, year: int) -> tuple[set[date] | None, set[date]]:
+    if isinstance(payload, list):
+        holidays: set[date] = set()
+        special_open_dates: set[date] = set()
+        for row in payload:
+            if not isinstance(row, dict):
+                continue
+            trade_date = _parse_roc_date(str(row.get("Date", "")))
+            if not trade_date or trade_date.year != year:
+                continue
+            name = str(row.get("Name", ""))
+            if "開始交易" in name or "最後交易" in name:
+                special_open_dates.add(trade_date)
+            else:
+                holidays.add(trade_date)
+        return (holidays, special_open_dates) if holidays else (None, set())
+    if isinstance(payload, dict):
+        holidays = _parse_holiday_dates(payload, year)
+        return (holidays, set()) if holidays else (None, set())
+    return None, set()
+
+
+def _parse_roc_date(raw: str) -> date | None:
+    if len(raw) != 7 or not raw.isdigit():
+        return None
+    return date(int(raw[:3]) + 1911, int(raw[3:5]), int(raw[5:7]))
 
 
 def _parse_holiday_dates(payload: dict, year: int) -> set[date]:

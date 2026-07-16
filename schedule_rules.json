@@ -7,7 +7,14 @@
     "on_error": "should_run_false"
   },
   "manual_dispatch": {
-    "bypass_gate": true
+    "bypass_gate": true,
+    "force_generation": true,
+    "ignore_existing_report": true
+  },
+  "scheduled_completion": {
+    "authority": "google_drive_current_period_report",
+    "skip_when_complete": true,
+    "github_cache_is_secondary_only": true
   },
   "profiles": {
     "daily": {
