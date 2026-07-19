@@ -7,7 +7,9 @@ Shared schedule rules and a small gate CLI for stock-report workflows under `rya
 This repo centralizes runtime schedule decisions for stock tools:
 
 - daily reports run only on TWSE trading days after 15:00 Asia/Taipei.
-- daily reports do not have a hard same-day cutoff; downstream repos should keep retrying and stop duplicate output with their own completed-report checks.
+- scheduled daily reports run only on the current TWSE trading day after the configured time.
+- scheduled weekly reports run only on that week's actual final TWSE trading day.
+- closed days never backfill an earlier report automatically; manual dispatch remains the explicit force-rerun path.
 - weekly reports run after the actual final TWSE trading day of the week.
 - monthly and quarterly profiles are defined for future report tools.
 - TWSE calendar failures must not make GitHub Actions fail at the gate.

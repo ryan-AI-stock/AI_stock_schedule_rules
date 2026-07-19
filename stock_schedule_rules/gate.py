@@ -63,18 +63,11 @@ def evaluate_gate(
     run_on = profile["run_on"]
     if run_on == "trading_day":
         current_window_open = now_tw.time() >= run_after
-        target = _latest_open_daily_target(
-            trading_dates,
-            current,
-            current_window_open=current_window_open,
-            retry_until_success=bool(profile.get("retry_until_success", False)),
-        )
-        if target is None:
-            reason = "before_run_after" if not current_window_open else "not_trading_day"
-            return GateDecision(False, "", period_type, reason)
-        if target == current:
-            return GateDecision(True, target.isoformat(), period_type, "trading_day_after_run_after")
-        return GateDecision(True, target.isoformat(), period_type, "retry_previous_trading_day_until_success")
+        if current not in trading_dates:
+            return GateDecision(False, "", period_type, "not_trading_day")
+        if not current_window_open:
+            return GateDecision(False, "", period_type, "before_run_after")
+        return GateDecision(True, current.isoformat(), period_type, "trading_day_after_run_after")
 
     if now_tw.time() < run_after:
         return GateDecision(False, "", period_type, "before_run_after")
@@ -85,13 +78,6 @@ def evaluate_gate(
             current - timedelta(days=current.weekday()),
             current + timedelta(days=6 - current.weekday()),
         )
-        if (
-            target is not None
-            and current > target
-            and current not in trading_dates
-            and bool(profile.get("retry_until_next_trading_day", False))
-        ):
-            return GateDecision(True, target.isoformat(), period_type, "retry_weekly_until_next_trading_day")
         return _period_decision(current, target, period_type, "last_trading_day_of_week")
 
     if run_on == "last_trading_day_of_month":
@@ -194,20 +180,6 @@ def _period_decision(current: date, target: date | None, period_type: str, reaso
 
 def _last_trading_day_in_range(trading_dates: set[date], start: date, end: date) -> date | None:
     candidates = [day for day in trading_dates if start <= day <= end]
-    return max(candidates) if candidates else None
-
-
-def _latest_open_daily_target(
-    trading_dates: set[date],
-    current: date,
-    *,
-    current_window_open: bool,
-    retry_until_success: bool,
-) -> date | None:
-    if not retry_until_success:
-        return current if current_window_open and current in trading_dates else None
-    latest_allowed = current if current_window_open else current - timedelta(days=1)
-    candidates = [day for day in trading_dates if day <= latest_allowed]
     return max(candidates) if candidates else None
 
 

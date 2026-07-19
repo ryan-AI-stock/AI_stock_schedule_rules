@@ -29,7 +29,7 @@ class GateTests(unittest.TestCase):
         self.assertTrue(decision.should_run)
         self.assertEqual(decision.target_date, "2026-06-05")
 
-    def test_daily_retries_previous_trading_day_until_next_window_opens(self):
+    def test_daily_never_retries_on_a_non_trading_day(self):
         before_15 = evaluate_gate(
             self.rules,
             "daily",
@@ -43,12 +43,10 @@ class GateTests(unittest.TestCase):
             self.trading_dates,
         )
 
-        self.assertTrue(before_15.should_run)
-        self.assertEqual(before_15.target_date, "2026-06-04")
-        self.assertEqual(before_15.reason, "retry_previous_trading_day_until_success")
-        self.assertTrue(weekend.should_run)
-        self.assertEqual(weekend.target_date, "2026-06-05")
-        self.assertEqual(weekend.reason, "retry_previous_trading_day_until_success")
+        self.assertFalse(before_15.should_run)
+        self.assertEqual(before_15.reason, "before_run_after")
+        self.assertFalse(weekend.should_run)
+        self.assertEqual(weekend.reason, "not_trading_day")
 
     def test_daily_respects_retry_until_success_false(self):
         self.rules["profiles"]["daily"]["retry_until_success"] = False
@@ -129,7 +127,7 @@ class GateTests(unittest.TestCase):
         self.assertTrue(decision.should_run)
         self.assertEqual(decision.target_date, "2026-06-04")
 
-    def test_weekly_retries_on_closed_friday_until_next_trading_day(self):
+    def test_weekly_does_not_retry_on_closed_friday(self):
         trading_dates = self.trading_dates - {date(2026, 6, 5)}
         decision = evaluate_gate(
             self.rules,
@@ -138,9 +136,8 @@ class GateTests(unittest.TestCase):
             trading_dates,
         )
 
-        self.assertTrue(decision.should_run)
-        self.assertEqual(decision.target_date, "2026-06-04")
-        self.assertEqual(decision.reason, "retry_weekly_until_next_trading_day")
+        self.assertFalse(decision.should_run)
+        self.assertEqual(decision.reason, "not_last_trading_day_of_week")
 
     def test_manual_policy_forces_generation_and_ignores_existing_report(self):
         manual = self.rules["manual_dispatch"]

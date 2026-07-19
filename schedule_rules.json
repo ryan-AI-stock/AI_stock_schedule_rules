@@ -1,5 +1,5 @@
 {
-  "version": "2026.06.07",
+  "version": "2026.07.19",
   "timezone": "Asia/Taipei",
   "market": "TWSE",
   "calendar": {
@@ -21,13 +21,13 @@
       "period_type": "daily",
       "run_after": "15:00",
       "run_on": "trading_day",
-      "retry_until_success": true
+      "retry_until_success": false
     },
     "weekly": {
       "period_type": "weekly",
       "run_after": "15:00",
       "run_on": "last_trading_day_of_week",
-      "retry_until_next_trading_day": true
+      "retry_until_next_trading_day": false
     },
     "monthly": {
       "period_type": "monthly",
