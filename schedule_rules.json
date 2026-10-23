@@ -1,9 +1,10 @@
 {
-  "version": "2026.07.19",
+  "version": "2026.10.24",
   "timezone": "Asia/Taipei",
   "market": "TWSE",
   "calendar": {
     "source": "twse_holiday_schedule",
+    "emergency_closure_source": "twse_exact_date_news_notice",
     "on_error": "should_run_false"
   },
   "manual_dispatch": {

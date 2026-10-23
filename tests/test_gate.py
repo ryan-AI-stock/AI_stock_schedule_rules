@@ -1,7 +1,12 @@
 import unittest
 from datetime import date, datetime, timedelta, timezone
 
-from stock_schedule_rules.gate import evaluate_gate, fetch_twse_trading_dates, load_rules
+from stock_schedule_rules.gate import (
+    evaluate_gate,
+    fetch_twse_emergency_closure,
+    fetch_twse_trading_dates,
+    load_rules,
+)
 
 
 TAIPEI = timezone(timedelta(hours=8))
@@ -138,6 +143,30 @@ class GateTests(unittest.TestCase):
 
         self.assertFalse(decision.should_run)
         self.assertEqual(decision.reason, "not_last_trading_day_of_week")
+
+    def test_weekly_recovers_thursday_when_friday_is_emergency_closure(self):
+        trading_dates = self.trading_dates - {date(2026, 6, 5)}
+        decision = evaluate_gate(
+            self.rules,
+            "weekly",
+            datetime(2026, 6, 5, 18, 0, tzinfo=TAIPEI),
+            trading_dates,
+            emergency_closed_dates={date(2026, 6, 5)},
+        )
+
+        self.assertTrue(decision.should_run)
+        self.assertEqual(decision.target_date, "2026-06-04")
+        self.assertEqual(decision.reason, "emergency_closure_week_recovery")
+
+    def test_exact_twse_news_title_confirms_emergency_closure(self):
+        payload = '{"data":[[1,"臺灣證券交易所集中交易市場115年10月23日休市一天","115年10月22日"]]}'
+
+        self.assertTrue(fetch_twse_emergency_closure(
+            date(2026, 10, 23), fetcher=lambda _url: payload,
+        ))
+        self.assertFalse(fetch_twse_emergency_closure(
+            date(2026, 10, 22), fetcher=lambda _url: payload,
+        ))
 
     def test_manual_policy_forces_generation_and_ignores_existing_report(self):
         manual = self.rules["manual_dispatch"]

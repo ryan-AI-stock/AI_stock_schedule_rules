@@ -15,6 +15,7 @@ from typing import Callable, Iterable
 TAIPEI_TZ = timezone(timedelta(hours=8))
 DEFAULT_RULES_PATH = Path(__file__).resolve().parents[1] / "schedule_rules.json"
 TWSE_HOLIDAY_URL = "https://openapi.twse.com.tw/v1/holidaySchedule/holidaySchedule"
+TWSE_NEWS_URL = "https://www.twse.com.tw/rwd/zh/news/newsList?response=json"
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,7 @@ def evaluate_gate(
     *,
     manual_dispatch: bool = False,
     force_run: bool = False,
+    emergency_closed_dates: set[date] | None = None,
 ) -> GateDecision:
     profile = rules["profiles"][profile_name]
     period_type = profile["period_type"]
@@ -78,6 +80,8 @@ def evaluate_gate(
             current - timedelta(days=current.weekday()),
             current + timedelta(days=6 - current.weekday()),
         )
+        if current in (emergency_closed_dates or set()) and target is not None and target < current:
+            return GateDecision(True, target.isoformat(), period_type, "emergency_closure_week_recovery")
         return _period_decision(current, target, period_type, "last_trading_day_of_week")
 
     if run_on == "last_trading_day_of_month":
@@ -114,6 +118,18 @@ def fetch_twse_trading_dates(year: int, fetcher: Callable[[str], str] | None = N
         for day in _iter_dates(date(year, 1, 1), date(year, 12, 31))
         if (day.weekday() < 5 and day not in holidays) or day in special_open_dates
     }
+
+
+def fetch_twse_emergency_closure(day: date, fetcher: Callable[[str], str] | None = None) -> bool | None:
+    """Confirm an unscheduled closure from an exact-date official TWSE news title."""
+    fetcher = fetcher or _default_fetcher
+    try:
+        payload = json.loads(fetcher(TWSE_NEWS_URL))
+    except Exception:
+        return None
+    roc_date = f"{day.year - 1911}年{day.month}月{day.day}日"
+    titles = [str(row[1]) for row in payload.get("data") or [] if isinstance(row, list) and len(row) > 1]
+    return any(roc_date in title and "休市" in title for title in titles)
 
 
 def _parse_calendar_payload(payload: object, year: int) -> tuple[set[date] | None, set[date]]:
@@ -219,6 +235,12 @@ def main(argv: list[str] | None = None) -> int:
     rules = load_rules(args.rules)
     now_tw = _parse_now(args.now)
     trading_dates = fetch_twse_trading_dates(now_tw.year)
+    emergency_closed_dates: set[date] = set()
+    if trading_dates is not None and now_tw.date() in trading_dates:
+        closure = fetch_twse_emergency_closure(now_tw.date())
+        if closure is True:
+            emergency_closed_dates.add(now_tw.date())
+            trading_dates.discard(now_tw.date())
     decision = evaluate_gate(
         rules,
         args.profile,
@@ -226,6 +248,7 @@ def main(argv: list[str] | None = None) -> int:
         trading_dates,
         manual_dispatch=args.manual_dispatch,
         force_run=args.force_run,
+        emergency_closed_dates=emergency_closed_dates,
     )
     print(json.dumps(decision.__dict__, ensure_ascii=False))
     if args.github_output:
